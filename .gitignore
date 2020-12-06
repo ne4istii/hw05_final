@@ -23,4 +23,3 @@ media/
 htmlcov/
 
 db.sqlite3
-run.sh
