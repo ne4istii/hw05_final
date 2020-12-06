@@ -17,6 +17,10 @@ __pycache__/
 
 static/
 posts/static/
+posts/migrations/
+users/migrations/
 media/
+htmlcov/
 
 db.sqlite3
+run.sh

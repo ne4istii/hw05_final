@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}
+  Последние обновления на сайте
+{% endblock %}
+{% block header %}
+  Последние обновления на сайте
+{% endblock %}
+
+
+{% block content %}
+  <div class="container">
+    {% include "includes/menu.html" with index=True %}
+    <!-- Вывод ленты записей -->
+    {% load cache %}
+    {% cache 20 index_page %}  
+      {% block index_page %}
+        {% for post in page %}
+          {% include "includes/post_item.html" with post=post %}
+        {% endfor %}  
+      {% endblock %}    
+    {% endcache %}
+  </div>  
+
+    <!-- Вывод паджинатора -->
+    {% if page.has_other_pages %}
+      {% include "includes/paginator.html" with items=page paginator=paginator%}
+    {% endif %}
+  
+{% endblock %} 
