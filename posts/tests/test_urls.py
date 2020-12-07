@@ -180,9 +180,6 @@ class PostURLTests(TestCase):
 
     def test_appearance_img_tag_and_show_error_when_upload_nonimage(self):
         '''Пост с картинкой отображается корректно, с тегом <img>.'''
-        file = (
-            b'123xxyz'
-        )
         image = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
             b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -191,13 +188,9 @@ class PostURLTests(TestCase):
             b'\x02\x00\x01\x00\x00\x02\x02\x0C'
             b'\x0A\x00\x3B'
         )
-        file = SimpleUploadedFile(
-            name ='file.pdf', 
-            content = file, 
-        )
         image = SimpleUploadedFile(
-            name ='image.gif', 
-            content = image, 
+            name='image.gif',
+            content=image, 
         )
         form_data_image = {
             'author': self.author_john, 
@@ -205,51 +198,30 @@ class PostURLTests(TestCase):
             'group': self.group_id,
             'image': image
         }
-        form_data_file = {
-            'author': self.author_john, 
-            'text': 'Text with file',
-            'group': self.group_id,
-            'image': file
-        }
         self.authorized_client_john.post(
-                reverse('post_edit', kwargs={
+                reverse('post_edit', 
+                kwargs={
                     'username': self.author_john, 
                     'post_id': self.post_john_id
                 }),
                 form_data_image
         )
-        response_file = self.authorized_client_john.post(
-                reverse('post_edit', kwargs={
-                    'username': self.author_john, 
-                    'post_id': self.post_john_id
-                }),
-                form_data_file
-        )
         urls_with_image = {
             'index.html': reverse('index'),
             'group.html': reverse('group_posts',
-                kwargs = {
+                kwargs={
                     'slug': self.group.slug
             }),
             'profile.html': reverse('profile', 
-                kwargs = {
+                kwargs={
                     'username': self.author_john
             }),
             'post.html': reverse('post_view',
-                kwargs = {
+                kwargs={
                     'username': self.author_john, 
                     'post_id': self.post_john_id
             }), 
         }
-        # Проверим загрузку в форму не image-файла.
-        self.assertFormError(
-            response_file, 
-            'form', 
-            'image', 
-            'Загрузите правильное изображение. '
-            'Файл, который вы загрузили, поврежден '
-            'или не является изображением.'
-        )
         # Проверим наличие тега <img> на страницах из словаря urls_with_image.
         for value in urls_with_image.values():
             with self.subTest(value=value):
@@ -257,6 +229,37 @@ class PostURLTests(TestCase):
                     self.authorized_client_john.get(value), 
                     '<img'
                 )
+
+    def test_show_error_when_upload_nonimage(self):
+        '''Проверим загрузку в форму /post_edit/ не image-файла.'''
+        file = (
+            b'123xxyz'
+        )
+        file = SimpleUploadedFile(
+            name='file.pdf',
+            content=file
+        )
+        form_data_file = {
+            'author': self.author_john, 
+            'text': 'Text with file',
+            'group': self.group_id,
+            'image': file
+        }
+        response = self.authorized_client_john.post(
+                reverse('post_edit', 
+                kwargs={
+                    'username': self.author_john, 
+                    'post_id': self.post_john_id
+                }),
+                form_data_file
+        )
+        self.assertFormError(response, 
+            'form', 
+            'image', 
+            'Загрузите правильное изображение. '
+            'Файл, который вы загрузили, поврежден '
+            'или не является изображением.'
+        )
 
     def test_templatetag_cache(self):
         '''Проверяем работу templatetag кэша на главной странице'''
@@ -271,7 +274,8 @@ class PostURLTests(TestCase):
             'group': self.group_id,
         }
         self.authorized_client_john.post(
-                reverse('post_edit', kwargs={
+                reverse('post_edit', 
+                kwargs={
                     'username': self.author_john, 
                     'post_id': self.post_john_id
                 }),

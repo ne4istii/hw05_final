@@ -67,21 +67,20 @@ def profile(request, username):
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
     is_author = author == request.user  
-    try:    
-        # is_following - подписан ли request.user на /username/?
-        is_following  = author.following.get(user__username=request.user)
-    except:
-        is_following = False
-    try:
-        # кол-во подписанных на /username/ - "подписчиков"
+    # is_following - подписан ли request.user на /username/?
+    is_following = author.following.filter(
+        user__username=request.user
+        ).exists()
+    # кол-во подписанных на /username/ - "подписчиков"
+    if author.following.exists():
         following_counter = author.following.count()
-    except:
+    else:
         following_counter = 0
-    try:
-        # кол-во на кого подписан /username/ - "подписан"
+    # кол-во на кого подписан /username/ - "подписан"
+    if author.follower.exists():
         follower_counter = author.follower.count()
-    except:
-        follower_counter = 0   
+    else:
+        follower_counter = 0
     return render(request, "profile.html", {
         'page': page, 
         'author': author,
@@ -95,7 +94,11 @@ def profile(request, username):
 
 
 def post_view(request, username, post_id):
-    post = get_object_or_404(Post.objects, id=post_id)
+    post = get_object_or_404(
+        Post.objects, 
+        id=post_id,
+        author__username=username,
+    )
     posts = post.author.posts.all()
     author = post.author
     comments = post.comments.all()
@@ -116,13 +119,7 @@ def add_comment(request, username, post_id):
         author__username=username, 
         id=post_id
     )
-    if request.method != 'POST':
-        form = CommentForm()
-        return render(request, 'comments.html', {
-            'form': form, 
-            'post': post,
-        })
-    form = CommentForm(request.POST)
+    form = CommentForm(request.POST or None, instance=post)
     if form.is_valid():
         comment = form.save(commit=False)
         comment.post = post
@@ -194,10 +191,9 @@ def profile_follow(request, username):
             'profile', 
             author, 
         )
-    try:    
-        is_following  = author.following.get(user__username=request.user)
-    except:
-        is_following = False
+    is_following = author.following.filter(
+        user__username=request.user
+        ).exists()
     if is_following:
         return redirect(
             'profile', 
@@ -215,12 +211,10 @@ def profile_follow(request, username):
 
 @login_required
 def profile_unfollow(request, username):
-    follow_author = get_object_or_404(
-        Follow, 
-        author__username=username
-    )
-    author = follow_author.author
-    follow_author.delete()
+    author = get_object_or_404(User, username=username)
+    is_following = author.following.filter(user__username=request.user).exists()
+    if is_following:
+        author.following.filter(user__username=request.user).delete()
     return redirect(
            'profile', 
             author, 
