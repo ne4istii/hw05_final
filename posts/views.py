@@ -19,7 +19,9 @@ def index(request):
 
 @login_required
 def follow_index(request):
-    posts_following = Post.objects.filter(author__following__user=request.user)
+    posts_following = Post.objects.filter(
+        author__following__user=request.user
+    )
     paginator = Paginator(posts_following, 10)
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
@@ -212,7 +214,9 @@ def profile_follow(request, username):
 @login_required
 def profile_unfollow(request, username):
     author = get_object_or_404(User, username=username)
-    is_following = author.following.filter(user__username=request.user).exists()
+    is_following = author.following.filter(
+        user__username=request.user
+        ).exists()
     if is_following:
         author.following.filter(user__username=request.user).delete()
     return redirect(
