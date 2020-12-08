@@ -18,18 +18,24 @@ class PostPagesTests(TestCase):
         super().setUpClass()
         cls.user = User.objects.create_user(
             username='John',
-            email='jlennon@beatles.com',
-            password='john'
         )
         cls.author_paul = User.objects.create_user(
             username='Paul',
-            email='paul@beatles.com',
-            password='paul'
+        )
+        cls.author_mike = User.objects.create_user(
+            username='Mike',
         )
         cls.group = Group.objects.create(
             title='Музыканты',
             slug='music',
             description='Популярные музыканты'
+        )
+        cls.post_paul = Post.objects.create(
+            text = (
+                'Followers'
+            ),
+            author = cls.author_paul,
+            group = cls.group,
         )
         cls.post = Post.objects.create(
             text = (
@@ -66,9 +72,9 @@ class PostPagesTests(TestCase):
         templates_pages_names = {
             'index.html': reverse('index'),
             'new.html': reverse('new_post'),
-            'group.html': (reverse('group_posts', 
+            'group.html': reverse('group_posts', 
                 kwargs={'slug': self.group.slug}  
-        ))}
+        )}
         for template, reverse_name in templates_pages_names.items():
             with self.subTest(reverse_name=reverse_name):
                 response = self.authorized_client.get(reverse_name)
@@ -128,7 +134,7 @@ class PostPagesTests(TestCase):
         )
         self.assertEqual(
             response.context.get('posts').count(), 
-            Post.objects.count()
+            Post.objects.filter(author__username=self.user).count()
         )
 
     def test_profile_show_correct_context(self):
@@ -145,7 +151,7 @@ class PostPagesTests(TestCase):
         )
         self.assertEqual(
             response.context.get('paginator').object_list.count(), 
-            Post.objects.count()
+            Post.objects.filter(author__username=self.user).count()
         )
 
     def test_post_edit_page_show_correct_context(self):
@@ -191,15 +197,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_authorized_client_can_follow_author(self):
-        '''Проверка для авторизованного пользователя 
-        подписки и отписки от автора.'''
-        post_paul = Post.objects.create(
-            text = (
-                'Followers'
-            ),
-            author = self.author_paul,
-            group = self.group,
-        )
+        '''Проверка подписки на автора для авторизованного пользователя.'''
         unfollow = Follow.objects.filter(
             author__username=self.author_paul
             ).count()
@@ -208,35 +206,61 @@ class PostPagesTests(TestCase):
             reverse('profile_follow',
             kwargs = {'username': self.author_paul}
         ))
+        # Проверка подписки
         follow = Follow.objects.filter(
             author__username=self.author_paul
             ).count()
-        # Проверка контекста /follow/ для John
+        self.assertEqual(follow, unfollow + 1)
+
+    def test_follow_index_show_correct_context_authorized_user(self):
+        '''Шаблон follow_index сформирован с правильным контекстом.'''
+        # Авторизованный User <John> подписался на author <Paul>
+        self.authorized_client.get(
+            reverse('profile_follow',
+            kwargs = {'username': self.author_paul}
+        ))
+         # Проверка контекста /follow/ для John
         response = self.authorized_client.get(
             reverse('follow_index')
         )
         self.assertEqual(
             response.context.get('page')[0].text, 
-            post_paul.text
+            self.post_paul.text
         )
-        # Проверка контектса /follow/ для Paul
-        self.authorized_client_paul = Client()
-        self.authorized_client_paul.force_login(self.author_paul)
-        response_paul = self.authorized_client_paul.get(
-            reverse('follow_index')
-        )
-        self.assertNotIn(
-            b'Followers',
-            response_paul.content
-        )
+
+    def test_authorized_client_can_unfollow_author(self):
+        '''Проверка отписки от автора для авторизованного пользователя.'''
+        # Авторизованный User <John> подписался на author <Paul>
+        self.authorized_client.get(
+            reverse('profile_follow',
+            kwargs = {'username': self.author_paul}
+        ))
+        follow = Follow.objects.filter(
+            author__username=self.author_paul
+            ).count()
         # Проверка подписки
-        self.assertEqual(follow, unfollow + 1)
         self.authorized_client.get(
             reverse('profile_unfollow',
             kwargs = {'username': self.author_paul}
         ))
-        # Проверка отписки
-        follow = Follow.objects.filter(
+        unfollow = Follow.objects.filter(
             author__username=self.author_paul
             ).count()
-        self.assertEqual(follow, unfollow)
+        self.assertEqual(unfollow, follow - 1)
+
+    def test_follow_index_show_correct_context_non_follow_author(self):
+        '''Новая запись пользователя не появляется в ленте тех, 
+        кто не подписан на него.'''
+        # Авторизованный User <John> подписался на author <Paul>
+        self.authorized_client.get(
+            reverse('profile_follow',
+            kwargs = {'username': self.author_paul}
+        ))
+        # Проверка контектса /follow/ для <Mike>, должен быть пустой
+        self.authorized_client_mike = Client()
+        self.authorized_client_mike.force_login(self.author_mike)
+        response_mike = self.authorized_client_mike.get(
+            reverse('follow_index')
+        )
+        with self.assertRaises(IndexError):
+            response_mike.context['page'][0].text

@@ -102,16 +102,27 @@ class PostURLTests(TestCase):
         }
         self.template_post_edit_comment = {
             'new.html': reverse('post_edit',
-            kwargs = {
+                kwargs = {
                     'username': self.author_john, 
                     'post_id': self.post_john_id
             }),
             'comments.html': reverse('add_comment',
-            kwargs = {
+                kwargs = {
                     'username': self.author_john, 
                     'post_id': self.post_john_id
-        })
+            }),
         }   
+        self.follow_unfollow = {
+            'follow_index': reverse('follow_index'),
+            'follow': reverse('profile_follow',
+                kwargs = {
+                    'username': self.author_john, 
+            }),
+            'unfollow': reverse('profile_unfollow',
+                kwargs = {
+                    'username': self.author_john, 
+            }),
+        }
 
     def test_urls_uses_correct_template(self):
         """URL-адреса из словаря templates_url_names используют
@@ -146,6 +157,16 @@ class PostURLTests(TestCase):
         """URL-адрес /username/post_id/edit и /username/post_id/comment  
         для анонимного пользователя редиректится на страницу логина."""
         for reverse_name in self.template_post_edit_comment.values():
+            with self.subTest():
+                response = self.guest_client.get(reverse_name, follow=True)
+                login_url = reverse('login')
+                redirect_url = f'{login_url}?next={reverse_name}'
+                self.assertRedirects(response, redirect_url)
+
+    def test_profile_index_follow_and_unfollow_availability_anonymous(self):
+        """URL-адреса из словаря follow_unfollow  
+        для анонимного пользователя редиректится на страницу логина."""
+        for reverse_name in self.follow_unfollow.values():
             with self.subTest():
                 response = self.guest_client.get(reverse_name, follow=True)
                 login_url = reverse('login')
